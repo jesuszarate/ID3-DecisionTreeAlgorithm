@@ -44,16 +44,16 @@ class ID3:
 
         H_fullset = id3.H(full_1, full_0)
 
-        print ('full: {0}'.format(H_fullset))
+        # print ('full: {0}'.format(H_fullset))
 
         sm = 0
         for i in range(len(arr)):
             s_v = float(len(df[df[col] == i]))  # Todo: this will only work for x1 right now as is
             sm += (s_v / float(len(df))) * arr[i]
 
-        print ('Sum: {0}'.format(sm))
-
-        print ('IG: {0}'.format(H_fullset - sm))
+        # print ('Sum: {0}'.format(sm))
+        # print ('IG: {0}'.format(H_fullset - sm))
+        return H_fullset - sm
 
 
 if __name__ == '__main__':
@@ -67,4 +67,6 @@ if __name__ == '__main__':
 
     df = pd.DataFrame(data=d)
 
-    id3.IG('x3', 'y', df)
+    for col in df.columns.values[:-1]:
+        print ('IG: {0}, {1}'.format(col, id3.IG(col, 'y', df)))
+
