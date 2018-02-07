@@ -21,8 +21,7 @@ class ID3:
             self.attributes[col] = self.IG(col, label, df)
             # print('IG: {0}, {1}'.format(col, igs[col]))
 
-
-    def fit(self, maxdepth = None):
+    def fit(self, maxdepth=None):
         self.root = self.ID3(self.df, self.attributes, label, maxdepth)
         return self.root
 
@@ -51,7 +50,7 @@ class ID3:
 
         # for each possible value v of that A can take:
         for v in S[A].drop_duplicates().values:
-            node = Node(v, root)
+            # node = Node(v, root)
 
             # Add a new tree branch corresponding to A=v
             # root.children.append(node)
@@ -77,7 +76,7 @@ class ID3:
     def getBestAttribute(self, attributes):
         return max(attributes, key=attributes.get)
 
-    #def H(self, pos_proportion, neg_proportion):
+    # def H(self, pos_proportion, neg_proportion):
     def H(self, proportions):
         # lg_pos = 0 if pos_proportion <= 0 else math.log(pos_proportion, 2)
         # lg_neg = 0 if neg_proportion <= 0 else math.log(neg_proportion, 2)
@@ -97,15 +96,13 @@ class ID3:
 
         return [x / sm for x in props]
 
-
-
     def IG(self, col, label, df):
 
         feature_set_x1 = df[col].drop_duplicates().values
 
         A = dict()
         for f in feature_set_x1:
-            y = df[df[col] == f][label].value_counts()#df[df[col] == f].values_counts()
+            y = df[df[col] == f][label].value_counts()  # df[df[col] == f].values_counts()
             # pos, neg = (self.proportions(x))
             props = (self.proportions(y))
             # A[f] = self.H(pos, neg)
@@ -123,13 +120,13 @@ class ID3:
 
         return H_fullset - sm
 
-
     def getSubset(self, S, A, v, label):
         return S[S[A] == v]
 
     def diff(self, attributes, A):
         attrs = attributes.copy()
         attrs.pop(A, None)
+        attributes.pop(A, None)
         return attrs
 
     def isSvEmpty(self, Sv, label):
@@ -138,21 +135,23 @@ class ID3:
     def getMaxVal(self, Sv, label):
         return Sv[label].value_counts().idxmax()
 
-    # def predict(self, df):
-    #     self.traverse(self.root, df)
-    #
-    # def traverse(self, node, df):
-    #
-    #     f = node.data
-    #
-    #     branch = df[node.data][0]
-    #     for child in node.children:
-    #
-    #         if branch == child.data:
-    #             self.traverse(child, df)
+        # def predict(self, df):
+        #     self.traverse(self.root, df)
+        #
+        # def traverse(self, node, df):
+        #
+        #     f = node.data
+        #
+        #     branch = df[node.data][0]
+        #     for child in node.children:
+        #
+        #         if branch == child.data:
+        #             self.traverse(child, df)
 
 
 labels = set()
+
+
 def generateGraph(root):
     print('digraph G {')
     count = 0
@@ -169,14 +168,18 @@ def generateGraph(root):
 def genGraphRec(node, count):
     string = ''
 
+    if len(node.children) == 0:
+        edge = '' if node.edge is None else node.edge
+        labels.add('{1}{0}[label="{0}"];\n'.format(node.data, edge))
+
     for c in node.children:
         count += 1
-        parent = 'nnonne' if node.parent is None else node.parent.data
-        edge = 'nnonne' if node.edge is None else node.edge
+        parent = '' if node.parent is None else node.parent.data
+        edge = '' if node.edge is None else node.edge
 
-        labels.add('{0}{1}[label="{0}"];\n'.format(node.data, edge))
+        labels.add('{1}{0}[label="{0}"];\n'.format(node.data, edge))
 
-        string += '"{0}{1}" -> "{2}{3}"[ label = "{3}"]"\n'.\
+        string += '"{1}{0}" -> "{3}{2}"[ label = "{3}"]"\n'. \
             format(node.data, edge, c.data, c.edge)
 
         string += genGraphRec(c, count)
@@ -187,7 +190,7 @@ def genGraphRec(node, count):
 def playTennis():
     d = dict(
         Outlook=['SUNNY', 'SUNNY', 'OVERCAST', 'RAIN', 'RAIN', 'RAIN', 'OVERCAST', 'SUNNY', 'SUNNY', 'RAIN', 'SUNNY',
-                  'OVERCAST', 'OVERCAST', 'RAIN'],
+                 'OVERCAST', 'OVERCAST', 'RAIN'],
         Temperature=['HOT', 'HOT', 'HOT', 'MILD', 'COOL', 'COOL', 'COOL', 'MILD', 'COOL', 'MILD', 'MILD', 'MILD', 'HOT',
                      'MILD'],
         Humidity=['HIGH', 'HIGH', 'HIGH', 'HIGH', 'NORMAL', 'NORMAL', 'NORMAL', 'HIGH', 'NORMAL', 'NORMAL', 'NORMAL',
@@ -209,9 +212,9 @@ def playTennis():
 
 def shape():
     d = dict(
-        color=['Blue'     , 'Green', 'Green', 'Green', 'Red' , 'Red' , 'Red' , 'Blue', 'Blue', 'Blue', 'Blue'],
-        shape=['Rect'     , 'Oval' , 'Rect' , 'Rect' , 'Rect', 'Oval', 'Oval', 'Tri' , 'Tri' , 'Oval', 'Oval'],
-        label=['A'        , 'A'    , 'B'    , 'B'    , 'B'   , 'B'   , 'B'   ,  'B'  , 'B'   , 'C'   , 'C']
+        color=['Blue', 'Green', 'Green', 'Green', 'Red', 'Red', 'Red', 'Blue', 'Blue', 'Blue', 'Blue'],
+        shape=['Square', 'Circle', 'Square', 'Square', 'Square', 'Circle', 'Circle', 'Tri', 'Tri', 'Circle', 'Circle'],
+        label=['A', 'A', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'C', 'C']
         # Play=[0,0,1,1,1,0,1,0,1,1,1,1,1,0]
     )
 
@@ -222,7 +225,6 @@ def shape():
 
     df = pd.DataFrame(data=d)
     test_df = pd.DataFrame(data=test)
-
 
     return 'label', df, test_df
 
@@ -252,13 +254,12 @@ if __name__ == '__main__':
     # label, df = triangle()
     # label, df = playTennis()
     # label, df = y()
-    label, df, test_df = shape()
-    # label, df, test_df = playTennis()
+    # label, df, test_df = shape()
+    label, df, test_df = playTennis()
 
     id3 = ID3(df, label)
 
     root = id3.fit()
-
 
     # id3.predict(test_df)
     generateGraph(root)
