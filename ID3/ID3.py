@@ -1,5 +1,6 @@
 import math
 import pandas as pd
+from graphviz import Digraph
 
 
 class Node:
@@ -20,6 +21,7 @@ class ID3:
         for col in selected_cols.columns.values:
             self.attributes[col] = self.IG(col, label, df)
             # print('IG: {0}, {1}'.format(col, igs[col]))
+
 
     def fit(self, maxdepth=None):
         self.root = self.ID3(self.df, self.attributes, label, maxdepth)
@@ -44,7 +46,7 @@ class ID3:
             return Node(self.getMaxVal(S, label), None)
 
         # Create a Root node for tree
-        A = self.getBestAttribute(attributes)  # attribute in Attributes that best splits S
+        A = self.getBestAttribute(S, label)  # attribute in Attributes that best splits S
 
         root = Node(A, parent)
 
@@ -73,7 +75,13 @@ class ID3:
 
         return root
 
-    def getBestAttribute(self, attributes):
+    def getBestAttribute(self, S, label):
+        selected_cols = S[S.columns.difference([label])]
+        attributes = dict()
+
+        for col in selected_cols.columns.values:
+            attributes[col] = self.IG(col, label, S)
+
         return max(attributes, key=attributes.get)
 
     # def H(self, pos_proportion, neg_proportion):
@@ -154,6 +162,7 @@ labels = set()
 
 def generateGraph(root):
     print('digraph G {')
+
     count = 0
     if len(root.children) > 0:
         print(genGraphRec(node=root, count=count))
@@ -164,6 +173,18 @@ def generateGraph(root):
 
     print('}')
 
+
+# def fun():
+#
+#
+#     dot.node('A', 'King arthur')
+#     dot.node('B', 'Ben')
+#     dot.node('L', 'Lance')
+#
+#     dot.edges(['AB', 'AL'])
+#     dot.edge('B', 'L', constraint = 'false')
+#
+#     dot.render('whateva.gv', view=True)
 
 def genGraphRec(node, count):
     string = ''
@@ -254,8 +275,8 @@ if __name__ == '__main__':
     # label, df = triangle()
     # label, df = playTennis()
     # label, df = y()
-    # label, df, test_df = shape()
-    label, df, test_df = playTennis()
+    label, df, test_df = shape()
+    # label, df, test_df = playTennis()
 
     id3 = ID3(df, label)
 
@@ -263,3 +284,4 @@ if __name__ == '__main__':
 
     # id3.predict(test_df)
     generateGraph(root)
+
