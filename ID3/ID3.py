@@ -162,36 +162,44 @@ labels = set()
 
 def generateGraph(root):
     print('digraph G {')
-
+    dot = Digraph(comment='the round table')
     count = 0
     if len(root.children) > 0:
-        print(genGraphRec(node=root, count=count))
+        print(genGraphRec(dot, node=root, count=count))
         for l in labels:
             print(l)
     else:
         print('"{0}"\n'.format(root.data))
 
     print('}')
+    dot.render('whateva.gv', view=True)
+    print(dot)
 
 
-# def fun():
-#
-#
-#     dot.node('A', 'King arthur')
-#     dot.node('B', 'Ben')
-#     dot.node('L', 'Lance')
-#
-#     dot.edges(['AB', 'AL'])
-#     dot.edge('B', 'L', constraint = 'false')
-#
-#     dot.render('whateva.gv', view=True)
+def fun():
+    dot = Digraph(comment='the round table')
 
-def genGraphRec(node, count):
+    dot.node('A', 'King arthur')
+    dot.node('B', 'Ben')
+    dot.node('L', 'Lance')
+
+    dot.edges(['AB', 'AL'])
+    dot.edge('B', 'L', 'aloha', constraint = 'false')
+
+    print(dot)
+    dot.render('whateva.gv', view=True)
+
+def genGraphRec(dot, node, count):
     string = ''
 
     if len(node.children) == 0:
         edge = '' if node.edge is None else node.edge
         labels.add('{1}{0}[label="{0}"];\n'.format(node.data, edge))
+
+        par = '{1}{0}'.format(node.data, edge)
+
+        dot.node(par, node.data)
+        # dot.edge(par, kid, c.edge)
 
     for c in node.children:
         count += 1
@@ -200,10 +208,15 @@ def genGraphRec(node, count):
 
         labels.add('{1}{0}[label="{0}"];\n'.format(node.data, edge))
 
+        par = '{1}{0}'.format(node.data, edge)
+        kid = '{1}{0}'.format(c.data, c.edge)
+        dot.node(par, node.data)
+        dot.edge(par, kid, c.edge)
+
         string += '"{1}{0}" -> "{3}{2}"[ label = "{3}"]"\n'. \
             format(node.data, edge, c.data, c.edge)
 
-        string += genGraphRec(c, count)
+        string += genGraphRec(dot, c, count)
 
     return string
 
@@ -285,3 +298,4 @@ if __name__ == '__main__':
     # id3.predict(test_df)
     generateGraph(root)
 
+    # fun()
