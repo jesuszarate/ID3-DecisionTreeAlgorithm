@@ -9,7 +9,10 @@ class Node:
         self.parent = parent
         self.children = []
         self.edge = None
+    def __str__(self):
+        return str(self.data)
 
+latex_newline = '\\\\'
 
 class ID3:
     def __init__(self, df, label):
@@ -19,7 +22,7 @@ class ID3:
         selected_cols = df[df.columns.difference([label])]
 
         for col in selected_cols.columns.values:
-            self.attributes[col] = self.IG(col, label, df)
+            self.attributes[col] = self.IG(col, label, df, log=False)
             # print('IG: {0}, {1}'.format(col, igs[col]))
 
 
@@ -31,22 +34,36 @@ class ID3:
         if maxdepth is None:
             maxdepth = float('infinity')
 
-        return self.ID3Rec(None, S, attributes, label, maxdepth)
+        return self.ID3Rec(None, S, attributes, label, maxdepth, log=True)
 
-    def ID3Rec(self, parent, S, attributes, label, depth):
+    def ID3Rec(self, parent, S, attributes, label, depth, log = False):
 
         # if all examples have same label:
         if len(S[label].drop_duplicates()) == 1 or depth == 0:
             # return a leaf node with the label ;
-            return Node(S[label].drop_duplicates().values[0], None)
+            node_data = S[label].drop_duplicates().values[0]
+            if log:
+                edge = S[parent.data].drop_duplicates().values[0]
+                # print('Creating leaf node for {3} edge $\\rightarrow${0}{1}'.format(node_data, latex_newline))
+                print('For edge {0} creating leaf node $\\rightarrow${1}{2}'.format(edge, node_data, latex_newline))
+                print('-'*50 + latex_newline)
+            return Node(node_data, None)
 
         # if Attributes empty:
         if not attributes:
+            node_data = self.getMaxVal(S, label)
+            if log:
+                edge = S[parent.data].drop_duplicates().values[0]
+                # print('Creating leaf node for $\\rightarrow$ {0}{1}'.format(node_data, latex_newline))
+                print('For edge {0} creating leaf node $\\rightarrow${1}{2}'.format(edge, node_data, latex_newline))
+                print('-'*50 + latex_newline)
             # return a leaf node with the most common label
-            return Node(self.getMaxVal(S, label), None)
+            return Node(node_data, None)
 
         # Create a Root node for tree
-        A = self.getBestAttribute(S, label)  # attribute in Attributes that best splits S
+        A = self.getBestAttribute(S, label, log=True)  # attribute in Attributes that best splits S
+        if log:
+            print('Split on $\\rightarrow$ {0}{1}'.format(A, latex_newline))
 
         root = Node(A, parent)
 
@@ -69,30 +86,36 @@ class ID3:
             else:
                 # below this branch add the subtree ID3(Sv, Attributes - {A}, Label)
                 # node.children.append(self.ID3Rec(node, Sv, self.diff(attributes, A), label, depth=depth - 1))
-                node = self.ID3Rec(root, Sv, self.diff(attributes, A), label, depth=depth - 1)
+                node = self.ID3Rec(root, Sv, self.diff(attributes, A), label, depth=depth - 1, log=log)
                 node.edge = v
                 root.children.append(node)
+                # generateGraph(root)
+
 
         return root
 
-    def getBestAttribute(self, S, label):
+    def getBestAttribute(self, S, label, log=False):
         selected_cols = S[S.columns.difference([label])]
         attributes = dict()
 
         for col in selected_cols.columns.values:
-            attributes[col] = self.IG(col, label, S)
+            attributes[col] = self.IG(col, label, S, log=True)
 
+        if log:
+            print('MAX IG: {0}{1}'.format(max(attributes, key=attributes.get), latex_newline))
+            print('*'*50 + latex_newline)
         return max(attributes, key=attributes.get)
 
-    # def H(self, pos_proportion, neg_proportion):
-    def H(self, proportions):
-        # lg_pos = 0 if pos_proportion <= 0 else math.log(pos_proportion, 2)
-        # lg_neg = 0 if neg_proportion <= 0 else math.log(neg_proportion, 2)
 
+    def H(self, proportions):
+        '''
+        Entropy
+        :param proportions:
+        :return the entropy:
+        '''
         sm = 0
         for prop in proportions:
             sm += -1 * prop * (0 if prop <= 0 else math.log(prop, 2))
-        # return (-1 * pos_proportion * lg_pos) - (neg_proportion * lg_neg)
         return sm
 
     def proportions(self, y):
@@ -104,29 +127,53 @@ class ID3:
 
         return [x / sm for x in props]
 
-    def IG(self, col, label, df):
+    def majority_error(self):
+        pass
+
+    def IG(self, col, label, df, log=False):
 
         feature_set_x1 = df[col].drop_duplicates().values
 
         A = dict()
         for f in feature_set_x1:
-            y = df[df[col] == f][label].value_counts()  # df[df[col] == f].values_counts()
-            # pos, neg = (self.proportions(x))
+            y = df[df[col] == f][label].value_counts()
             props = (self.proportions(y))
-            # A[f] = self.H(pos, neg)
             A[f] = self.H(props)
 
-        # full_0 = len(df[df[label] == 0][label]) / float(len(df))
-        # full_1 = len(df[df[label] == 1][label]) / float(len(df))
         full_prop = self.proportions(df[label].value_counts())
         H_fullset = self.H(full_prop)
 
+        exp_entropy = self.expected_entropy(A, col)
+
+        information_gain = H_fullset - exp_entropy
+
+        if log:
+            info = dict(entropy = A,
+                        ExpectedEntropy = exp_entropy,
+                        InformationGain = information_gain)
+            self.logInfoGain(col, info)
+
+        return information_gain
+
+    def logInfoGain(self, col, info):
+        print()
+        print('Col = {0}{1}'.format(col, latex_newline))
+
+        for key, val in info.items():
+
+            if key == 'entropy':
+                for k, v in val.items():
+                    print('$H_{{{0}}} = {1}${2}'.format(k, v, latex_newline))
+            else:
+                print('{0} $= {1}${2}'.format(key, val, latex_newline))
+
+
+    def expected_entropy(self, A, col):
         sm = 0
         for v in A.keys():
             s_v = float(len(df[df[col] == v]))
             sm += (s_v / float(len(df))) * A[v]
-
-        return H_fullset - sm
+        return sm
 
     def getSubset(self, S, A, v, label):
         return S[S[A] == v]
@@ -143,82 +190,53 @@ class ID3:
     def getMaxVal(self, Sv, label):
         return Sv[label].value_counts().idxmax()
 
-        # def predict(self, df):
-        #     self.traverse(self.root, df)
-        #
-        # def traverse(self, node, df):
-        #
-        #     f = node.data
-        #
-        #     branch = df[node.data][0]
-        #     for child in node.children:
-        #
-        #         if branch == child.data:
-        #             self.traverse(child, df)
+    def predict(self, df):
+        return self.traverse(self.root, df)
 
+    def traverse(self, node, df):
 
-labels = set()
+        if len(node.children) == 0:
+            return node
+
+        branch = df[node.data][0]
+        for child in node.children:
+
+            if branch == child.edge:
+                result_node = self.traverse(child, df)
+                return child if result_node is None else result_node
+        return None
 
 
 def generateGraph(root):
-    print('digraph G {')
-    dot = Digraph(comment='the round table')
-    count = 0
+    dot = Digraph(comment='Graph')
     if len(root.children) > 0:
-        print(genGraphRec(dot, node=root, count=count))
-        for l in labels:
-            print(l)
+        genGraphRec(dot, node=root)
     else:
-        print('"{0}"\n'.format(root.data))
+        dot.node(str(root.data))
 
-    print('}')
-    dot.render('whateva.gv', view=True)
-    print(dot)
+    dot.render('graph.gv', view=True)
 
 
-def fun():
-    dot = Digraph(comment='the round table')
-
-    dot.node('A', 'King arthur')
-    dot.node('B', 'Ben')
-    dot.node('L', 'Lance')
-
-    dot.edges(['AB', 'AL'])
-    dot.edge('B', 'L', 'aloha', constraint = 'false')
-
-    print(dot)
-    dot.render('whateva.gv', view=True)
-
-def genGraphRec(dot, node, count):
-    string = ''
-
+def genGraphRec(dot, node):
+    # Leaf nodes
     if len(node.children) == 0:
         edge = '' if node.edge is None else node.edge
-        labels.add('{1}{0}[label="{0}"];\n'.format(node.data, edge))
-
         par = '{1}{0}'.format(node.data, edge)
+        dot.node(par, str(node.data))
 
-        dot.node(par, node.data)
-        # dot.edge(par, kid, c.edge)
 
     for c in node.children:
-        count += 1
-        parent = '' if node.parent is None else node.parent.data
         edge = '' if node.edge is None else node.edge
-
-        labels.add('{1}{0}[label="{0}"];\n'.format(node.data, edge))
 
         par = '{1}{0}'.format(node.data, edge)
         kid = '{1}{0}'.format(c.data, c.edge)
-        dot.node(par, node.data)
-        dot.edge(par, kid, c.edge)
+        dot.node(par, str(node.data))
 
-        string += '"{1}{0}" -> "{3}{2}"[ label = "{3}"]"\n'. \
-            format(node.data, edge, c.data, c.edge)
+        dot.render('graph.gv', view=True)
+        dot.node(kid, str(c.data))
+        dot.edge(par, kid, str(c.edge))
 
-        string += genGraphRec(dot, c, count)
-
-    return string
+        genGraphRec(dot, c)
 
 
 def playTennis():
@@ -253,8 +271,8 @@ def shape():
     )
 
     test = dict(
-        color=['Red'],
-        shape=['Rect']
+        color=['Green'],
+        shape=['Tri']
     )
 
     df = pd.DataFrame(data=d)
@@ -287,15 +305,14 @@ if __name__ == '__main__':
     # label, df = y()
     # label, df = triangle()
     # label, df = playTennis()
-    # label, df = y()
+    # label, df, test_df = y()
     label, df, test_df = shape()
     # label, df, test_df = playTennis()
 
     id3 = ID3(df, label)
-
     root = id3.fit()
 
-    # id3.predict(test_df)
+    # print('Should be in class: {0}'.format(id3.predict(test_df)))
     generateGraph(root)
 
     # fun()
