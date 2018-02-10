@@ -40,9 +40,9 @@ class ID3:
             maxdepth = float('infinity')
 
 
-        return self.ID3Rec(None, S, attributes, label, maxdepth)
+        return self.ID3Rec(None, S, S, attributes, label, maxdepth)
 
-    def ID3Rec(self, parent, S, attributes, label, depth):
+    def ID3Rec(self, parent, full_S, S, attributes, label, depth):
 
         # if all examples have same label:
         if len(S[label].drop_duplicates()) == 1 or depth == 0:
@@ -52,7 +52,7 @@ class ID3:
                 edge = S[parent.data].drop_duplicates().values[0]
                 print('For edge {0} creating leaf node $\\rightarrow${1}{2}'.format(edge, node_data, latex_newline))
                 print('-' * 60 + latex_newline)
-            return Node(node_data, None)
+            return Node(node_data, parent)
 
         # if Attributes empty:
         if not attributes:
@@ -63,7 +63,7 @@ class ID3:
                 print('-' * 60 + latex_newline)
 
             # return a leaf node with the most common label
-            return Node(node_data, None)
+            return Node(node_data, parent)
 
         # Create a Root node for tree
         A = self.getBestAttribute(S, label)  # attribute in Attributes that best splits S
@@ -73,7 +73,8 @@ class ID3:
         root = Node(A, parent)
 
         # for each possible value v of that A can take:
-        for v in S[A].drop_duplicates().values:
+        for v in full_S[A].drop_duplicates().values:
+        # for v in S[A].drop_duplicates().values:
             # node = Node(v, root)
 
             # Add a new tree branch corresponding to A=v
@@ -83,14 +84,16 @@ class ID3:
 
             # if Sv is empty:
             if self.isSvEmpty(Sv, label):
+                node = Node(self.getMaxVal(S, label), root)
+                node.edge = v
                 # add leaf node with the most common value of Label in S
-                root.children.append(Node(self.getMaxVal(S, label), root))
+                root.children.append(node)
 
                 # d = S[S[A].value_counts().idxmax()]
                 # root.children.append(Node(d, root))
             else:
                 # below this branch add the subtree ID3(Sv, Attributes - {A}, Label)
-                node = self.ID3Rec(root, Sv, self.diff(attributes, A), label, depth=depth - 1)
+                node = self.ID3Rec(root, full_S, Sv, self.diff(attributes, A), label, depth=depth - 1)
                 node.edge = v
                 root.children.append(node)  # Add a new tree branch corresponding to A=v
 
@@ -107,6 +110,10 @@ class ID3:
             print('MAX IG: {0}{1}'.format(max(attributes, key=attributes.get), latex_newline))
             print('*' * 50 + latex_newline)
         return max(attributes, key=attributes.get)
+
+    def majority_error(self, S, attr, label):
+        majority = S[S[label] == attr]
+        return 1 - majority
 
     def H(self, proportions):
         '''
@@ -137,8 +144,6 @@ class ID3:
 
         return [(x+frac) / (sm+frac) for x in props]
 
-    def majority_error(self):
-        pass
 
     def IG(self, col, label, df):
 
@@ -238,6 +243,7 @@ def genGraphRec(dot, node):
         edge = '' if node.edge is None else node.edge
         par = '{1}{0}'.format(node.data, edge)
         dot.node(par, str(node.data))
+        return
 
     for c in node.children:
         edge = '' if node.edge is None else node.edge
@@ -246,8 +252,8 @@ def genGraphRec(dot, node):
         kid = '{1}{0}'.format(c.data, c.edge)
         dot.node(par, str(node.data))
 
-        dot.render('graph.gv', view=True)
-        dot.node(kid, str(c.data))
+        # dot.render('graph.gv', view=True)
+        # dot.node(kid, str(c.data))
         dot.edge(par, kid, str(c.edge))
 
         genGraphRec(dot, c)
@@ -280,7 +286,7 @@ def playTennis():
         Play='+'
     )
 
-    addAttributes(d, new_item)
+    # addAttributes(d, new_item)
 
     predictand = 'Play'
     df = pd.DataFrame(data=d)
@@ -335,4 +341,4 @@ if __name__ == '__main__':
     print('Should be in class: {0}'.format(id3.predict(test_df)))
     generateGraph(root)
 
-    # fun()
+    # fun()[p[c
