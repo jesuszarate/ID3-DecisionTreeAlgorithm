@@ -1,5 +1,6 @@
 import math
 import pandas as pd
+from enum import Enum
 from graphviz import Digraph
 
 
@@ -13,19 +14,26 @@ class Node:
     def __str__(self):
         return str(self.data)
 
+class IG_func(Enum):
+    ENTROPY = 0
+    MAJORITY = 1
+
 
 latex_newline = '\\\\'
 
-
 class ID3:
-    def __init__(self, df, label):
+    def __init__(self, df, label, func=IG_func.ENTROPY):
         self.attributes = dict()
         self.df = df
         self.label = label
         self.logging = False
         selected_cols = df[df.columns.difference([label])]
-
         self.root = None
+
+        if func == IG_func.MAJORITY:
+            self.func = self.majority_error
+        else:
+            self.func = self.H
 
         for col in selected_cols.columns.values:
             self.attributes[col] = self.IG(col, label, df)
@@ -111,9 +119,8 @@ class ID3:
             print('*' * 50 + latex_newline)
         return max(attributes, key=attributes.get)
 
-    def majority_error(self, S, attr, label):
-        majority = S[S[label] == attr]
-        return 1 - majority
+    def majority_error(self, proportions):
+        return (1 - max(proportions))
 
     def H(self, proportions):
         '''
@@ -139,13 +146,44 @@ class ID3:
         props = []
         sm = 0
         for title, value in y.iteritems():
-            props.append(value)
+            props.append(value + frac)
             sm += value
 
-        return [(x+frac) / (sm+frac) for x in props]
+        return [(x) / (sm+frac) for x in props]
 
 
     def IG(self, col, label, df):
+
+        feature_set_x1 = df[col].drop_duplicates().values
+
+        A = dict()
+        for f in feature_set_x1:
+            y = df[df[col] == f][label].value_counts()
+
+            if 'None' in feature_set_x1:
+                frac = len(df[df[col]==f])/(len(df[label]) - 1)
+                props = (self.frac_proportions(y, frac))
+            else:
+                props = (self.proportions(y))
+
+            A[f] = self.func(props)
+
+        full_prop = self.proportions(df[label].value_counts())
+        H_fullset = self.func(full_prop)
+
+        exp_entropy = self.expected_entropy(A, col)
+
+        information_gain = H_fullset - exp_entropy
+
+        if self.logging:
+            info = dict(entropy=A,
+                        ExpectedEntropy=exp_entropy,
+                        InformationGain=information_gain)
+            self.logInfoGain(col, info)
+
+        return information_gain
+
+    def IG2(self, col, label, df):
 
         feature_set_x1 = df[col].drop_duplicates().values
 
@@ -255,7 +293,7 @@ def genGraphRec(dot, node):
         # dot.render('graph.gv', view=True)
         # dot.node(kid, str(c.data))
         dot.edge(par, kid, str(c.edge))
-
+        dot.render('graph.gv', view=True)
         genGraphRec(dot, c)
 
 
@@ -279,6 +317,7 @@ def playTennis():
 
     new_item = dict(
         # Outlook='OVERCAST',
+        # Outlook='SUNNY',
         Outlook='None',
         Temperature='MILD',
         Humidity='NORMAL',
@@ -286,7 +325,7 @@ def playTennis():
         Play='+'
     )
 
-    # addAttributes(d, new_item)
+    addAttributes(d, new_item)
 
     predictand = 'Play'
     df = pd.DataFrame(data=d)
@@ -328,6 +367,39 @@ def y():
 
 
 if __name__ == '__main__':
+
+    # frac = 6/14
+    # y = dict(p=3, n=3)
+    # props = {}
+    # sm = 0
+    # for key, value in y.items():
+    #     # props.append(value + frac)
+    #     props[key] = value + frac
+    #     sm += value
+    #
+    # p = props['p']/(sm + frac)
+    # n = 1 - p
+    # print('p = {0}'.format(p))
+    # print('n = {0}'.format(n))
+    #
+    # pcalc = 0 if p <= 0 else math.log(p, 2)
+    # ncalc = 0 if n <= 0 else math.log(n, 2)
+    # H = (-1 * p * pcalc) - (n * ncalc)
+    #
+    # print('H = {0}'.format(H))
+    #
+    # H1 = 0.7837769474847012
+    # H2 = 0.9967916319816366
+    # # H3 = 0.7837769474847012
+    # exp_ent = (8/15)*(H1) + (6/15)*(H2) #+ (4/15)*(H3)
+    #
+    # Hp = -1 * (10/15)* math.log(10/15, 2) - (5/15)*math.log(5/15, 2)
+    # IG = Hp - exp_ent
+    #
+    # print('Hp = {0}'.format(Hp))
+    # print('ent = {0}'.format(exp_ent))
+    # print('IG = {0}'.format(IG))
+#######################################################################
     # label, df = y()
     # label, df = triangle()
     # label, df = playTennis()
@@ -335,10 +407,11 @@ if __name__ == '__main__':
     label, df, test_df = shape()
     # label, df, test_df = playTennis()
 
+    # id3 = ID3(df, label, IG_func.MAJORITY)
     id3 = ID3(df, label)
     root = id3.fit(logging=True)
 
-    print('Should be in class: {0}'.format(id3.predict(test_df)))
+    # print('Should be in class: {0}'.format(id3.predict(test_df)))
     generateGraph(root)
 
     # fun()[p[c
